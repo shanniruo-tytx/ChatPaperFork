@@ -20,7 +20,6 @@ from bs4 import BeautifulSoup
 from PIL import Image
 import sys
 
-
 ArxivParams = namedtuple(
     "ArxivParams",
     [
@@ -303,7 +302,7 @@ class Reader:
     def __init__(self, key_word, query,
                  root_path='./',
                  gitee_key='',
-                 sort=None, 
+                 sort=None,
                  user_name='defualt', args=None):
         self.user_name = user_name  # 读者姓名
         self.key_word = key_word  # 读者感兴趣的关键词
@@ -319,11 +318,13 @@ class Reader:
         self.root_path = root_path
         # 创建一个ConfigParser对象
         self.config = configparser.ConfigParser()
-        # 读取配置文件
-        self.config.read('apikey.ini')
+        project_root = os.path.dirname(os.path.abspath(__file__))
+
+        # 使用 os.path.join 构建配置文件的绝对路径
+        self.config.read(os.path.join(project_root, 'apikey.ini'))
         OPENAI_KEY = os.environ.get("OPENAI_KEY", "")
         # 获取某个键对应的值
-        openai.api_base = self.config.get('OpenAI', 'OPENAI_API_BASE')    
+        openai.api_base = self.config.get('OpenAI', 'OPENAI_API_BASE')
         self.chat_api_list = self.config.get('OpenAI', 'OPENAI_API_KEYS')[1:-1].replace('\'', '').split(',')
         self.chat_api_list.append(OPENAI_KEY)
 
@@ -366,8 +367,8 @@ class Reader:
         for article in articles:
             try:
                 title = article.find("p", class_="title").text  # 找到每篇论文的标题，并去掉多余的空格和换行符
-                title = title.strip()            
-                link = article.find("span").find_all("a")[0].get('href')            
+                title = title.strip()
+                link = article.find("span").find_all("a")[0].get('href')
                 date_text = article.find("p", class_="is-size-7").text
                 date_text = date_text.split('\n')[0].split("Submitted ")[-1].split("; ")[0]
                 date_text = datetime.datetime.strptime(date_text, "%d %B, %Y").date()
@@ -381,8 +382,8 @@ class Reader:
                 print("error_title:", title)
                 exc_type, exc_obj, exc_tb = sys.exc_info()
                 fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-                print(exc_type, fname, exc_tb.tb_lineno)          
-                
+                print(exc_type, fname, exc_tb.tb_lineno)
+
         return titles, links, dates
 
     # 定义一个函数，根据关键词获取所有可用的论文标题，并打印出来
@@ -460,7 +461,7 @@ class Reader:
                 print("summary_error:", e)
                 exc_type, exc_obj, exc_tb = sys.exc_info()
                 fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-                print(exc_type, fname, exc_tb.tb_lineno)          
+                print(exc_type, fname, exc_tb.tb_lineno)
                 if "maximum context" in str(e):
                     current_tokens_index = str(e).find("your messages resulted in") + len(
                         "your messages resulted in") + 1
@@ -469,7 +470,7 @@ class Reader:
                     chat_summary_text = self.chat_summary(text=text, summary_prompt_token=summary_prompt_token)
 
             htmls.append('## Paper:' + str(paper_index + 1))
-            htmls.append('\n\n\n')            
+            htmls.append('\n\n\n')
             if "chat_summary_text" in locals():
                 htmls.append(chat_summary_text)
 
@@ -480,14 +481,14 @@ class Reader:
                 if 'method' in parse_key.lower() or 'approach' in parse_key.lower():
                     method_key = parse_key
                     break
-            
+
             chat_method_text = ""
             if method_key != '':
                 text = ''
                 method_text = ''
                 summary_text = ''
                 summary_text += "<summary>" + chat_summary_text
-                # methods                
+                # methods
                 method_text += paper.section_text_dict[method_key]
                 text = summary_text + "\n\n<Methods>:\n\n" + method_text
                 # chat_method_text = self.chat_method(text=text)
@@ -497,14 +498,14 @@ class Reader:
                     print("method_error:", e)
                     exc_type, exc_obj, exc_tb = sys.exc_info()
                     fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-                    print(exc_type, fname, exc_tb.tb_lineno)          
+                    print(exc_type, fname, exc_tb.tb_lineno)
                     if "maximum context" in str(e):
                         current_tokens_index = str(e).find("your messages resulted in") + len(
                             "your messages resulted in") + 1
                         offset = int(str(e)[current_tokens_index:current_tokens_index + 4])
                         method_prompt_token = offset + 800 + 150
                         chat_method_text = self.chat_method(text=text, method_prompt_token=method_prompt_token)
-                
+
                 if "chat_method_text" in locals():
                     htmls.append(chat_method_text)
                 # htmls.append(chat_method_text)
@@ -525,7 +526,7 @@ class Reader:
             summary_text += "<summary>" + chat_summary_text + "\n <Method summary>:\n" + chat_method_text
             chat_conclusion_text = ""
             if conclusion_key != '':
-                # conclusion                
+                # conclusion
                 conclusion_text += paper.section_text_dict[conclusion_key]
                 text = summary_text + "\n\n<Conclusion>:\n\n" + conclusion_text
             else:
@@ -537,14 +538,14 @@ class Reader:
                 print("conclusion_error:", e)
                 exc_type, exc_obj, exc_tb = sys.exc_info()
                 fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-                print(exc_type, fname, exc_tb.tb_lineno)  
+                print(exc_type, fname, exc_tb.tb_lineno)
                 if "maximum context" in str(e):
                     current_tokens_index = str(e).find("your messages resulted in") + len(
                         "your messages resulted in") + 1
                     offset = int(str(e)[current_tokens_index:current_tokens_index + 4])
                     conclusion_prompt_token = offset + 800 + 150
                     chat_conclusion_text = self.chat_conclusion(text=text,
-                                                                conclusion_prompt_token=conclusion_prompt_token)            
+                                                                conclusion_prompt_token=conclusion_prompt_token)
             if "chat_conclusion_text" in locals():
                 htmls.append(chat_conclusion_text)
             htmls.append("\n" * 4)
@@ -587,7 +588,7 @@ class Reader:
                  8. Conclusion: \n\n
                     - (1):xxx;\n                     
                     - (2):Innovation point: xxx; Performance: xxx; Workload: xxx;\n                      
-                 
+
                  Be sure to use {} answers (proper nouns need to be marked in English), statements as concise and academic as possible, do not repeat the content of the previous <summary>, the value of the use of the original numbers, be sure to strictly follow the format, the corresponding content output to xxx, in accordance with \n line feed, ....... means fill in according to the actual requirements, if not, you can not write.                 
                  """.format(self.language, self.language)},
         ]
@@ -635,7 +636,7 @@ class Reader:
                     - (2):xxx;\n 
                     - (3):xxx;\n  
                     ....... \n\n     
-                 
+
                  Be sure to use {} answers (proper nouns need to be marked in English), statements as concise and academic as possible, do not repeat the content of the previous <summary>, the value of the use of the original numbers, be sure to strictly follow the format, the corresponding content output to xxx, in accordance with \n line feed, ....... means fill in according to the actual requirements, if not, you can not write.                 
                  """.format(self.language, self.language)},
         ]
@@ -690,7 +691,7 @@ class Reader:
                     - (2):xxx;\n 
                     - (3):xxx;\n  
                     - (4):xxx.\n\n     
-                 
+
                  Be sure to use {} answers (proper nouns need to be marked in English), statements as concise and academic as possible, do not have too much repetitive information, numerical values using the original numbers, be sure to strictly follow the format, the corresponding content output to xxx, in accordance with \n line feed.                 
                  """.format(self.language, self.language, self.language)},
         ]
@@ -735,7 +736,8 @@ def chat_arxiv_main(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("--query", type=str, default='traffic flow prediction', help="the query string, ti: xx, au: xx, all: xx,")
+    parser.add_argument("--query", type=str, default='traffic flow prediction',
+                        help="the query string, ti: xx, au: xx, all: xx,")
     parser.add_argument("--key_word", type=str, default='GPT robot', help="the key word of user research fields")
     parser.add_argument("--page_num", type=int, default=2, help="the maximum number of page")
     parser.add_argument("--max_results", type=int, default=3, help="the maximum number of results")

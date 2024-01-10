@@ -4,15 +4,15 @@ from contextlib import redirect_stdout
 from io import StringIO
 from pprint import pformat
 
-from flask import Flask, Response, jsonify, request, url_for
+from flask import Flask, Response, jsonify, request, url_for, render_template
 from flask_cors import CORS
 
 from chat_arxiv import ArxivParams, chat_arxiv_main
 from chat_paper import PaperParams, chat_paper_main
-from chat_response import ResponseParams, chat_response_main
-from chat_reviewer import ReviewerParams, chat_reviewer_main
+from ChatReviewerAndResponse.chat_response import ResponseParams, chat_response_main
+from ChatReviewerAndResponse.chat_reviewer import ReviewerParams, chat_reviewer_main
 
-app = Flask(__name__)
+app = Flask(__name__, template_folder='front')
 CORS(app)
 
 
@@ -29,8 +29,9 @@ def home():
     reviewer_url = url_for("reviewer", _external=True, paper_path="", file_format="txt",
                            research_fields="computer science, artificial intelligence and reinforcement learning",
                            language="en")
+
     return f'''
-    <h1>ChatPaper，Flask版本的优势</h1>
+    <h1>ChatPaper，Flask版本的优势 --测试浏览器缓存--</h1>
     <p>GitHub 项目地址：<a href="https://github.com/kaixindelele/ChatPaper" target="_blank">https://github.com/kaixindelele/ChatPaper</a></p> 
     <p>将原始的 Python 脚本改为使用 Flask 构建的 Web 服务具有以下优点：</p>
     <ul>
@@ -39,6 +40,9 @@ def home():
         <li><strong>可扩展性</strong>：使用 Flask 可以更轻松地扩展应用程序，以包含其他功能、中间件和 API 端点。</li>
         <li><strong>易于集成</strong>：Flask 应用程序可以与其他 Web 服务和前端框架（如 React、Vue.js 等）轻松集成，从而提供更丰富的用户体验。</li>
     </ul>
+    <a href="http://192.168.1.164:5000/start" target="_blank">开始使用</a>
+
+
     <h1>功能描述和调用方法</h1>
     <h2>arxiv</h2>
     <p>搜索 Arxiv 上的论文。参数：query, key_word, page_num, max_results, days, sort, save_image, file_format, language</p>
@@ -73,6 +77,11 @@ def process_request(main_function, params_class, default_values):
     output_lines = [line.strip() for line in output_str.split("\n") if line.strip()]
     formatted_output_str = "\n".join(output_lines)
     return pformat(formatted_output_str)
+
+
+@app.route("/start", methods=["GET"])
+def start():
+    return render_template('index.html')
 
 
 @app.route("/arxiv", methods=["GET"])
@@ -146,6 +155,7 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
+    # args.debug = True #调试用
     logging.basicConfig(level=get_log_level(
         args), format="%(asctime)s %(message)s", datefmt="%m/%d/%Y %I:%M:%S %p")
 

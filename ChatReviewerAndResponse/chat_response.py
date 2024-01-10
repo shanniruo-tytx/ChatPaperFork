@@ -12,7 +12,7 @@ import openai
 import tenacity
 import tiktoken
 
-from get_paper import Paper
+# from get_paper import Paper
 
 # ChatResponse
 
@@ -37,7 +37,7 @@ class Response:
         self.config.read('apikey.ini')
         OPENAI_KEY = os.environ.get("OPENAI_KEY", "")
         # 获取某个键对应的值
-        openai.api_base = self.config.get('OpenAI', 'OPENAI_API_BASE')    
+        openai.api_base = self.config.get('OpenAI', 'OPENAI_API_BASE')
         self.chat_api_list = self.config.get('OpenAI', 'OPENAI_API_KEYS')[1:-1].replace('\'', '').split(',')
         self.chat_api_list.append(OPENAI_KEY)
 
@@ -106,7 +106,7 @@ class Response:
                 Concern #2: xxxx
                 Author response: xxxxx
                 ...
-                
+
                 """.format(self.language)
 
              },

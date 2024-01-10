@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="zh">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ChatPaper 前端</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            text-align: center; /* Center align content */
+        }
+
+        h1,
+        h2 {
+            color: #333;
+        }
+
+        form {
+            margin-bottom: 20px;
+        }
+
+        form {
+            margin: 0 auto; /* Center align forms */
+            border: 1px solid #ccc; /* Add border */
+            padding: 20px;
+            width: 50%; /* Adjust width as needed */
+            box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.1); /* Add subtle shadow */
+        }
+
+        input,
+        button,
+        checkbox {
+            margin-bottom: 10px;
+        }
+
+        button {
+            background-color: #007BFF;
+            color: #fff;
+            padding: 8px 16px;
+            border: none;
+            cursor: pointer;
+        }
+
+        #result {
+            margin-top: 20px;
+            padding: 10px;
+            border: 4px solid #cccccc;
+            text-align: left;
+            min-height: 800px; /* Set the desired minimum height */
+
+        }
+
+        #result_title {
+            font-family: "Arial", sans-serif; /* Set the desired font-family */
+            color: #333; /* Set the desired text color */
+            font-size: 40px; /* Set the desired font size */
+            text-align: left;
+        }
+
+
+        .header-container h2 {
+            margin-right: 10px;
+        }
+
+        .icon-container {
+            position: relative;
+            cursor: pointer;
+        }
+
+        .tooltip {
+            visibility: hidden;
+            position: absolute;
+            bottom: 125%;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #333;
+            color: #fff;
+            padding: 8px;
+            border-radius: 4px;
+            font-size: 14px;
+            opacity: 0;
+            transition: opacity 0.3s, visibility 0.3s;
+        }
+
+        .tooltip:hover {
+            opacity: 1;
+        }
+    </style>
+</head>
+
+<body>
+
+<h1>AI论文总结</h1>
+<!-- Paper 表单 -->
+<form id="paperForm">
+    <h2>Paper API</h2>
+    <div class="icon-container" onmouseover="showTooltip(this)" onmouseout="hideTooltip(this)">
+        <span>❓</span>
+        <div class="tooltip">搜索并分析论文。参数：pdf_path, query, key_word, filter_keys, max_results, sort, save_image,
+            file_format, language
+        </div>
+    </div>
+    <label for="paperPdfPath">PDF路径：</label>
+    <input type="text" id="paperPdfPath" name="pdf_path" placeholder="输入PDF路径" value="">
+
+    <label for="paperQuery">查询：</label>
+    <input type="text" id="paperQuery" name="query" placeholder="输入查询" value="all: ChatGPT robot">
+
+    <label for="paperKeyWord">关键词：</label>
+    <input type="text" id="paperKeyWord" name="key_word" placeholder="输入关键词" value="reinforcement learning">
+
+    <label for="paperFilterKeys">过滤关键词：</label>
+    <input type="text" id="paperFilterKeys" name="filter_keys" placeholder="输入过滤关键词" value="ChatGPT robot">
+
+    <label for="paperMaxResults">最大结果数：</label>
+    <input type="number" id="paperMaxResults" name="max_results" placeholder="输入最大结果数" value="1">
+
+    <label for="paperSort">排序：</label>
+    <input type="text" id="paperSort" name="sort" placeholder="输入排序方式" value="Relevance">
+
+    <label for="paperSaveImage">保存图片：</label>
+    <input type="checkbox" id="paperSaveImage" name="save_image" value="false">
+
+    <label for="paperFileFormat">文件格式：</label>
+    <input type="text" id="paperFileFormat" name="file_format" placeholder="输入文件格式" value="md">
+
+    <label for="paperLanguage">语言：</label>
+    <input type="text" id="paperLanguage" name="language" placeholder="输入语言" value="zh">
+
+    <button type="button" onclick="callPaperAPI()">提交</button>
+</form>
+
+
+<!-- Arxiv 表单 -->
+<form id="arxivForm">
+    <h2>Arxiv API：Arxiv论文搜索</h2>
+    <div class="icon-container" onmouseover="showTooltip(this)" onmouseout="hideTooltip(this)">
+        <span>❓</span>
+        <div class="tooltip">搜索 Arxiv 上的论文。参数：query, key_word, page_num, max_results, days, sort, save_image,
+            file_format, language
+        </div>
+    </div>
+    <div class="tooltip">
+        Arxiv API 用于搜索和获取 Arxiv 论文。
+    </div>
+
+    <label for="arxivQuery">查询：</label>
+    <input type="text" id="arxivQuery" name="query" placeholder="输入查询" value="GPT-4">
+
+    <label for="arxivKeyWord">关键词：</label>
+    <input type="text" id="arxivKeyWord" name="key_word" placeholder="输入关键词" value="GPT robot">
+
+    <label for="arxivPageNum">页数：</label>
+    <input type="number" id="arxivPageNum" name="page_num" placeholder="输入页数" value="1">
+
+    <label for="arxivMaxResults">最大结果数：</label>
+    <input type="number" id="arxivMaxResults" name="max_results" placeholder="输入最大结果数" value="1">
+
+    <label for="arxivDays">天数：</label>
+    <input type="number" id="arxivDays" name="days" placeholder="输入天数" value="1">
+
+    <label for="arxivSort">排序：</label>
+    <input type="text" id="arxivSort" name="sort" placeholder="输入排序方式" value="web">
+
+    <button type="button" onclick="callArxivAPI()">提交</button>
+</form>
+
+<!-- Response 表单 -->
+<form id="responseForm">
+    <h2>Response API</h2>
+    <div class="icon-container" onmouseover="showTooltip(this)" onmouseout="hideTooltip(this)">
+        <span>❓</span>
+        <div class="tooltip">处理论文审稿评论。参数：comment_path, file_format, 语言：中文zh，英文en</div>
+    </div>
+    <label for="responseCommentPath">评论路径：</label>
+    <input type="text" id="responseCommentPath" name="comment_path" placeholder="输入评论路径" value="review_comments.txt">
+
+    <label for="responseFileFormat">文件格式：</label>
+    <input type="text" id="responseFileFormat" name="file_format" placeholder="输入文件格式" value="txt">
+
+    <label for="responseLanguage">语言：</label>
+    <input type="text" id="responseLanguage" name="language" placeholder="输入语言" value="en">
+
+    <button type="button" onclick="callResponseAPI()">提交</button>
+</form>
+<div id="result_title">结果</div>
+<div id="result">请调用接口</div>
+
+<script>
+    function callArxivAPI() {
+        var query = document.getElementById("arxivQuery").value;
+        var keyWord = document.getElementById("arxivKeyWord").value;
+        var pageNum = document.getElementById("arxivPageNum").value;
+        var maxResults = document.getElementById("arxivMaxResults").value;
+        var days = document.getElementById("arxivDays").value;
+        var sort = document.getElementById("arxivSort").value;
+
+        var apiUrl = `http://192.168.1.164:5000/arxiv?query=${query}&key_word=${keyWord}&page_num=${pageNum}&max_results=${maxResults}&days=${days}&sort=${sort}`;
+
+        makeAPIRequest(apiUrl);
+    }
+
+    function callResponseAPI() {
+        var commentPath = document.getElementById("responseCommentPath").value;
+        var fileFormat = document.getElementById("responseFileFormat").value;
+        var language = document.getElementById("responseLanguage").value;
+
+        var apiUrl = `http://192.168.1.164:5000/response?comment_path=${commentPath}&file_format=${fileFormat}&language=${language}`;
+
+        makeAPIRequest(apiUrl);
+    }
+
+    function callPaperAPI() {
+        var pdfPath = document.getElementById("paperPdfPath").value;
+        var query = document.getElementById("paperQuery").value;
+        var keyWord = document.getElementById("paperKeyWord").value;
+        var filterKeys = document.getElementById("paperFilterKeys").value;
+        var maxResults = document.getElementById("paperMaxResults").value;
+        var sort = document.getElementById("paperSort").value;
+        var saveImage = document.getElementById("paperSaveImage").checked;
+        var fileFormat = document.getElementById("paperFileFormat").value;
+        var language = document.getElementById("paperLanguage").value;
+
+        var apiUrl = `http://192.168.1.164:5000/paper?pdf_path=${pdfPath}&query=${query}&key_word=${keyWord}&filter_keys=${filterKeys}&max_results=${maxResults}&sort=${sort}&save_image=${saveImage}&file_format=${fileFormat}&language=${language}`;
+
+        makeAPIRequest(apiUrl);
+    }
+
+    function makeAPIRequest(apiUrl) {
+        document.getElementById("result").innerText = "正在加载，请稍候... 实时进度 xxx%";
+        fetch(apiUrl)
+            .then(response => response.text())
+            .then(result => {
+                updateResult(result);
+            })
+            .catch(error => {
+                console.error('错误：', error);
+                updateResult("发生错误。");
+            });
+    }
+
+    function updateResult(result) {
+        var resultContainer = document.getElementById("result");
+
+        if (result.trim() === "") {
+            // Set a default length and display a message
+            resultContainer.innerText = "发生错误";
+            resultContainer.style.minHeight = "500px"; // Adjust the default height as needed
+        } else {
+            // Update the result with the received data
+            resultContainer.innerText = result;
+            resultContainer.style.minHeight = ""; // Reset the default height
+        }
+    }
+
+    function showTooltip(element) {
+        var tooltip = element.querySelector('.tooltip');
+        tooltip.style.visibility = 'visible';
+        tooltip.style.opacity = '1';
+    }
+
+    function hideTooltip(element) {
+        var tooltip = element.querySelector('.tooltip');
+        tooltip.style.visibility = 'hidden';
+        tooltip.style.opacity = '0';
+    }
+
+</script>
+
+</body>
+
+</html>

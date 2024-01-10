@@ -17,38 +17,54 @@ import tiktoken
 import fitz, io, os
 from PIL import Image
 
+PaperParams = namedtuple(
+    "PaperParams",
+    [
+        "pdf_path",
+        "query",
+        "key_word",
+        "filter_keys",
+        "max_results",
+        "sort",
+        "save_image",
+        "file_format",
+        "language",
+    ],
+)
+
 
 class Paper:
     def __init__(self, path, title='', url='', abs='', authers=[]):
-        # 初始化函数，根据pdf路径初始化Paper对象                
-        self.url = url           # 文章链接
-        self.path = path          # pdf路径
-        self.section_names = []   # 段落标题
-        self.section_texts = {}   # 段落内容    
+        # 初始化函数，根据pdf路径初始化Paper对象
+        self.url = url  # 文章链接
+        self.path = path  # pdf路径
+        self.section_names = []  # 段落标题
+        self.section_texts = {}  # 段落内容
         self.abs = abs
         self.title_page = 0
         if title == '':
-            self.pdf = fitz.open(self.path) # pdf文档
+            self.pdf = fitz.open(self.path)  # pdf文档
             self.title = self.get_title()
-            self.parse_pdf()            
+            self.parse_pdf()
         else:
             self.title = title
-        self.authers = authers        
+        self.authers = authers
         self.roman_num = ["I", "II", 'III', "IV", "V", "VI", "VII", "VIII", "IIX", "IX", "X"]
-        self.digit_num = [str(d+1) for d in range(10)]
+        self.digit_num = [str(d + 1) for d in range(10)]
         self.first_image = ''
-        
+
     def parse_pdf(self):
-        self.pdf = fitz.open(self.path) # pdf文档
+        self.pdf = fitz.open(self.path)  # pdf文档
+        # print(self.pdf.shape)
         self.text_list = [page.get_text() for page in self.pdf]
         self.all_text = ' '.join(self.text_list)
-        self.section_page_dict = self._get_all_page_index() # 段落与页码的对应字典
+        self.section_page_dict = self._get_all_page_index()  # 段落与页码的对应字典
         print("section_page_dict", self.section_page_dict)
-        self.section_text_dict = self._get_all_page() # 段落与内容的对应字典
+        self.section_text_dict = self._get_all_page()  # 段落与内容的对应字典
         self.section_text_dict.update({"title": self.title})
         self.section_text_dict.update({"paper_info": self.get_paper_info()})
-        self.pdf.close()         
-        
+        self.pdf.close()
+
     def get_paper_info(self):
         first_page_text = self.pdf[self.title_page].get_text()
         if "Abstract" in self.section_text_dict.keys():
@@ -57,7 +73,7 @@ class Paper:
             abstract_text = self.abs
         first_page_text = first_page_text.replace(abstract_text, "")
         return first_page_text
-        
+
     def get_image_path(self, image_path=''):
         """
         将PDF中的第一张图保存到image.png里面，存到本地目录，返回文件名称，供gitee读取
@@ -74,9 +90,9 @@ class Paper:
                 # 查看独立页面
                 page = my_pdf_file[page_number - 1]
                 # 查看当前页所有图片
-                images = page.get_images()                
+                images = page.get_images()
                 # 遍历当前页面所有图片
-                for image_number, image in enumerate(page.get_images(), start=1):           
+                for image_number, image in enumerate(page.get_images(), start=1):
                     # 访问图片xref
                     xref_value = image[0]
                     # 提取图片信息
@@ -91,32 +107,32 @@ class Paper:
                     if image_size > max_size:
                         max_size = image_size
                     image_list.append(image)
-        for image in image_list:                            
+        for image in image_list:
             image_size = image.size[0] * image.size[1]
-            if image_size == max_size:                
+            if image_size == max_size:
                 image_name = f"image.{ext}"
                 im_path = os.path.join(image_path, image_name)
                 print("im_path:", im_path)
-                
+
                 max_pix = 480
                 origin_min_pix = min(image.size[0], image.size[1])
-                
+
                 if image.size[0] > image.size[1]:
-                    min_pix = int(image.size[1] * (max_pix/image.size[0]))
+                    min_pix = int(image.size[1] * (max_pix / image.size[0]))
                     newsize = (max_pix, min_pix)
                 else:
-                    min_pix = int(image.size[0] * (max_pix/image.size[1]))
+                    min_pix = int(image.size[0] * (max_pix / image.size[1]))
                     newsize = (min_pix, max_pix)
                 image = image.resize(newsize)
-                
+
                 image.save(open(im_path, "wb"))
                 return im_path, ext
         return None, None
-    
+
     # 定义一个函数，根据字体的大小，识别每个章节名称，并返回一个列表
-    def get_chapter_names(self,):
+    def get_chapter_names(self, ):
         # # 打开一个pdf文件
-        doc = fitz.open(self.path) # pdf文档        
+        doc = fitz.open(self.path)  # pdf文档
         text_list = [page.get_text() for page in doc]
         all_text = ''
         for text in text_list:
@@ -129,69 +145,69 @@ class Paper:
                 point_split_list = line.split('.')
                 space_split_list = line.split(' ')
                 if 1 < len(space_split_list) < 5:
-                    if 1 < len(point_split_list) < 5 and (point_split_list[0] in self.roman_num or point_split_list[0] in self.digit_num):
+                    if 1 < len(point_split_list) < 5 and (
+                            point_split_list[0] in self.roman_num or point_split_list[0] in self.digit_num):
                         print("line:", line)
-                        chapter_names.append(line)      
-                    # 这段代码可能会有新的bug，本意是为了消除"Introduction"的问题的！
+                        chapter_names.append(line)
+                        # 这段代码可能会有新的bug，本意是为了消除"Introduction"的问题的！
                     elif 1 < len(point_split_list) < 5:
                         print("line:", line)
-                        chapter_names.append(line)     
-        
+                        chapter_names.append(line)
+
         return chapter_names
-        
+
     def get_title(self):
-        doc = self.pdf # 打开pdf文件
-        max_font_size = 0 # 初始化最大字体大小为0
-        max_string = "" # 初始化最大字体大小对应的字符串为空
+        doc = self.pdf  # 打开pdf文件
+        max_font_size = 0  # 初始化最大字体大小为0
+        max_string = ""  # 初始化最大字体大小对应的字符串为空
         max_font_sizes = [0]
-        for page_index, page in enumerate(doc): # 遍历每一页
-            text = page.get_text("dict") # 获取页面上的文本信息
-            blocks = text["blocks"] # 获取文本块列表
-            for block in blocks: # 遍历每个文本块
-                if block["type"] == 0 and len(block['lines']): # 如果是文字类型
+        for page_index, page in enumerate(doc):  # 遍历每一页
+            text = page.get_text("dict")  # 获取页面上的文本信息
+            blocks = text["blocks"]  # 获取文本块列表
+            for block in blocks:  # 遍历每个文本块
+                if block["type"] == 0 and len(block['lines']):  # 如果是文字类型
                     if len(block["lines"][0]["spans"]):
-                        font_size = block["lines"][0]["spans"][0]["size"] # 获取第一行第一段文字的字体大小            
+                        font_size = block["lines"][0]["spans"][0]["size"]  # 获取第一行第一段文字的字体大小
                         max_font_sizes.append(font_size)
-                        if font_size > max_font_size: # 如果字体大小大于当前最大值
-                            max_font_size = font_size # 更新最大值
-                            max_string = block["lines"][0]["spans"][0]["text"] # 更新最大值对应的字符串
-        max_font_sizes.sort()                
+                        if font_size > max_font_size:  # 如果字体大小大于当前最大值
+                            max_font_size = font_size  # 更新最大值
+                            max_string = block["lines"][0]["spans"][0]["text"]  # 更新最大值对应的字符串
+        max_font_sizes.sort()
         print("max_font_sizes", max_font_sizes[-10:])
         cur_title = ''
-        for page_index, page in enumerate(doc): # 遍历每一页
-            text = page.get_text("dict") # 获取页面上的文本信息
-            blocks = text["blocks"] # 获取文本块列表
-            for block in blocks: # 遍历每个文本块
-                if block["type"] == 0 and len(block['lines']): # 如果是文字类型
+        for page_index, page in enumerate(doc):  # 遍历每一页
+            text = page.get_text("dict")  # 获取页面上的文本信息
+            blocks = text["blocks"]  # 获取文本块列表
+            for block in blocks:  # 遍历每个文本块
+                if block["type"] == 0 and len(block['lines']):  # 如果是文字类型
                     if len(block["lines"][0]["spans"]):
-                        cur_string = block["lines"][0]["spans"][0]["text"] # 更新最大值对应的字符串
-                        font_flags = block["lines"][0]["spans"][0]["flags"] # 获取第一行第一段文字的字体特征
-                        font_size = block["lines"][0]["spans"][0]["size"] # 获取第一行第一段文字的字体大小                         
+                        cur_string = block["lines"][0]["spans"][0]["text"]  # 更新最大值对应的字符串
+                        font_flags = block["lines"][0]["spans"][0]["flags"]  # 获取第一行第一段文字的字体特征
+                        font_size = block["lines"][0]["spans"][0]["size"]  # 获取第一行第一段文字的字体大小
                         # print(font_size)
-                        if abs(font_size - max_font_sizes[-1]) < 0.3 or abs(font_size - max_font_sizes[-2]) < 0.3:                        
-                            # print("The string is bold.", max_string, "font_size:", font_size, "font_flags:", font_flags)                            
-                            if len(cur_string) > 4 and "arXiv" not in cur_string:                            
-                                # print("The string is bold.", max_string, "font_size:", font_size, "font_flags:", font_flags) 
-                                if cur_title == ''    :
-                                    cur_title += cur_string                       
+                        if abs(font_size - max_font_sizes[-1]) < 0.3 or abs(font_size - max_font_sizes[-2]) < 0.3:
+                            # print("The string is bold.", max_string, "font_size:", font_size, "font_flags:", font_flags)
+                            if len(cur_string) > 4 and "arXiv" not in cur_string:
+                                # print("The string is bold.", max_string, "font_size:", font_size, "font_flags:", font_flags)
+                                if cur_title == '':
+                                    cur_title += cur_string
                                 else:
-                                    cur_title += ' ' + cur_string     
+                                    cur_title += ' ' + cur_string
                             self.title_page = page_index
                             # break
-        title = cur_title.replace('\n', ' ')                        
+        title = cur_title.replace('\n', ' ')
         return title
-
 
     def _get_all_page_index(self):
         # 定义需要寻找的章节名称列表
-        section_list = ["Abstract", 
-                        'Introduction', 'Related Work', 'Background', 
+        section_list = ["Abstract",
+                        'Introduction', 'Related Work', 'Background',
                         "Preliminary", "Problem Formulation",
                         'Methods', 'Methodology', "Method", 'Approach', 'Approaches',
                         # exp
                         "Materials and Methods", "Experiment Settings",
-                        'Experiment',  "Experimental Results", "Evaluation", "Experiments",                        
-                        "Results", 'Findings', 'Data Analysis',                                                                        
+                        'Experiment', "Experimental Results", "Evaluation", "Experiments",
+                        "Results", 'Findings', 'Data Analysis',
                         "Discussion", "Results and Discussion", "Conclusion",
                         'References']
         # 初始化一个字典来存储找到的章节和它们在文档中出现的页码
@@ -227,7 +243,7 @@ class Paper:
         text = ''
         text_list = []
         section_dict = {}
-        
+
         # 再处理其他章节：
         text_list = [page.get_text() for page in self.pdf]
         for sec_index, sec_name in enumerate(self.section_page_dict):
@@ -237,15 +253,15 @@ class Paper:
             else:
                 # 直接考虑后面的内容：
                 start_page = self.section_page_dict[sec_name]
-                if sec_index < len(list(self.section_page_dict.keys()))-1:
-                    end_page = self.section_page_dict[list(self.section_page_dict.keys())[sec_index+1]]
+                if sec_index < len(list(self.section_page_dict.keys())) - 1:
+                    end_page = self.section_page_dict[list(self.section_page_dict.keys())[sec_index + 1]]
                 else:
                     end_page = len(text_list)
                 print("start_page, end_page:", start_page, end_page)
                 cur_sec_text = ''
                 if end_page - start_page == 0:
-                    if sec_index < len(list(self.section_page_dict.keys()))-1:
-                        next_sec = list(self.section_page_dict.keys())[sec_index+1]
+                    if sec_index < len(list(self.section_page_dict.keys())) - 1:
+                        next_sec = list(self.section_page_dict.keys())[sec_index + 1]
                         if text_list[start_page].find(sec_name) == -1:
                             start_i = text_list[start_page].find(sec_name.upper())
                         else:
@@ -253,11 +269,11 @@ class Paper:
                         if text_list[start_page].find(next_sec) == -1:
                             end_i = text_list[start_page].find(next_sec.upper())
                         else:
-                            end_i = text_list[start_page].find(next_sec)                        
+                            end_i = text_list[start_page].find(next_sec)
                         cur_sec_text += text_list[start_page][start_i:end_i]
                 else:
-                    for page_i in range(start_page, end_page):                    
-#                         print("page_i:", page_i)
+                    for page_i in range(start_page, end_page):
+                        # print("page_i:", page_i)
                         if page_i == start_page:
                             if text_list[start_page].find(sec_name) == -1:
                                 start_i = text_list[start_page].find(sec_name.upper())
@@ -267,12 +283,12 @@ class Paper:
                         elif page_i < end_page:
                             cur_sec_text += text_list[page_i]
                         elif page_i == end_page:
-                            if sec_index < len(list(self.section_page_dict.keys()))-1:
-                                next_sec = list(self.section_page_dict.keys())[sec_index+1]
+                            if sec_index < len(list(self.section_page_dict.keys())) - 1:
+                                next_sec = list(self.section_page_dict.keys())[sec_index + 1]
                                 if text_list[start_page].find(next_sec) == -1:
                                     end_i = text_list[start_page].find(next_sec.upper())
                                 else:
-                                    end_i = text_list[start_page].find(next_sec)  
+                                    end_i = text_list[start_page].find(next_sec)
                                 cur_sec_text += text_list[page_i][:end_i]
                 section_dict[sec_name] = cur_sec_text.replace('-\n', '').replace('\n', ' ')
         return section_dict
@@ -300,7 +316,10 @@ class Reader:
         # 创建一个ConfigParser对象
         self.config = configparser.ConfigParser()
         # 读取配置文件
-        self.config.read('apikey.ini')
+        project_root = os.path.dirname(os.path.abspath(__file__))
+
+        # 使用 os.path.join 构建配置文件的绝对路径
+        self.config.read(os.path.join(project_root, 'apikey.ini'))
         OPENAI_KEY = os.environ.get("OPENAI_KEY", "")
         # 获取某个键对应的值
         openai.api_base = self.config.get('OpenAI', 'OPENAI_API_BASE')
@@ -460,6 +479,7 @@ class Reader:
             text += 'Paper_info:' + paper.section_text_dict['paper_info']
             # intro
             text += list(paper.section_text_dict.values())[0]
+            print(text)
             chat_summary_text = ""
             try:
                 chat_summary_text = self.chat_summary(text=text)
@@ -493,7 +513,7 @@ class Reader:
                 method_text = ''
                 summary_text = ''
                 summary_text += "<summary>" + chat_summary_text
-                # methods                
+                # methods
                 method_text += paper.section_text_dict[method_key]
                 text = summary_text + "\n\n<Methods>:\n\n" + method_text
                 chat_method_text = ""
@@ -528,7 +548,7 @@ class Reader:
             summary_text = ''
             summary_text += "<summary>" + chat_summary_text + "\n <Method summary>:\n" + chat_method_text
             if conclusion_key != '':
-                # conclusion                
+                # conclusion
                 conclusion_text += paper.section_text_dict[conclusion_key]
                 text = summary_text + "\n\n<Conclusion>:\n\n" + conclusion_text
             else:
@@ -570,6 +590,7 @@ class Reader:
                     stop=tenacity.stop_after_attempt(5),
                     reraise=True)
     def chat_conclusion(self, text, conclusion_prompt_token=800):
+        print("-----begin chat_conclusion--------")
         openai.api_key = self.chat_api_list[self.cur_api]
         self.cur_api += 1
         self.cur_api = 0 if self.cur_api >= len(self.chat_api_list) - 1 else self.cur_api
@@ -593,7 +614,7 @@ class Reader:
                  8. Conclusion: \n\n
                     - (1):xxx;\n                     
                     - (2):Innovation point: xxx; Performance: xxx; Workload: xxx;\n                      
-                 
+
                  Be sure to use {} answers (proper nouns need to be marked in English), statements as concise and academic as possible, do not repeat the content of the previous <summary>, the value of the use of the original numbers, be sure to strictly follow the format, the corresponding content output to xxx, in accordance with \n line feed, ....... means fill in according to the actual requirements, if not, you can not write.                 
                  """.format(self.language, self.language)},
         ]
@@ -624,6 +645,7 @@ class Reader:
                     stop=tenacity.stop_after_attempt(5),
                     reraise=True)
     def chat_method(self, text, method_prompt_token=800):
+        print("-----begin chat_method--------")
         openai.api_key = self.chat_api_list[self.cur_api]
         self.cur_api += 1
         self.cur_api = 0 if self.cur_api >= len(self.chat_api_list) - 1 else self.cur_api
@@ -649,7 +671,7 @@ class Reader:
                     - (2):xxx;\n 
                     - (3):xxx;\n  
                     ....... \n\n     
-                 
+
                  Be sure to use {} answers (proper nouns need to be marked in English), statements as concise and academic as possible, do not repeat the content of the previous <summary>, the value of the use of the original numbers, be sure to strictly follow the format, the corresponding content output to xxx, in accordance with \n line feed, ....... means fill in according to the actual requirements, if not, you can not write.                 
                  """.format(self.language, self.language)},
         ]
@@ -679,6 +701,7 @@ class Reader:
                     stop=tenacity.stop_after_attempt(5),
                     reraise=True)
     def chat_summary(self, text, summary_prompt_token=1100):
+        print("-----begin chat_summary--------")
         openai.api_key = self.chat_api_list[self.cur_api]
         self.cur_api += 1
         self.cur_api = 0 if self.cur_api >= len(self.chat_api_list) - 1 else self.cur_api
@@ -712,7 +735,7 @@ class Reader:
                     - (2):xxx;\n 
                     - (3):xxx;\n  
                     - (4):xxx.\n\n     
-                 
+
                  Be sure to use {} answers (proper nouns need to be marked in English), statements as concise and academic as possible, do not have too much repetitive information, numerical values using the original numbers, be sure to strictly follow the format, the corresponding content output to xxx, in accordance with \n line feed.                 
                  """.format(self.language, self.language, self.language)},
         ]
@@ -757,6 +780,7 @@ class Reader:
 
 def chat_paper_main(args):
     # 创建一个Reader对象，并调用show_info方法
+    print("start chat_paper_main")
     if args.sort == 'Relevance':
         sort = arxiv.SortCriterion.Relevance
     elif args.sort == 'LastUpdatedDate':
@@ -801,7 +825,8 @@ def chat_paper_main(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("--pdf_path", type=str, default=r'demo.pdf', help="if none, the bot will download from arxiv with query")
+    parser.add_argument("--pdf_path", type=str, default=r'demo.pdf',
+                        help="if none, the bot will download from arxiv with query")
     # parser.add_argument("--pdf_path", type=str, default=r'C:\Users\Administrator\Desktop\DHER\RHER_Reset\ChatPaper', help="if none, the bot will download from arxiv with query")
     # parser.add_argument("--pdf_path", type=str, default='', help="if none, the bot will download from arxiv with query")
     parser.add_argument("--query", type=str, default='all: ChatGPT robot',
@@ -816,7 +841,7 @@ if __name__ == '__main__':
     parser.add_argument("--save_image", default=False,
                         help="save image? It takes a minute or two to save a picture! But pretty")
     parser.add_argument("--file_format", type=str, default='md', help="导出的文件格式，如果存图片的话，最好是md，如果不是的话，txt的不会乱")
-    parser.add_argument("--language", type=str, default='zh', help="The other output lauguage is English, is en")    
+    parser.add_argument("--language", type=str, default='zh', help="The other output lauguage is English, is en")
     import time
 
     start_time = time.time()
