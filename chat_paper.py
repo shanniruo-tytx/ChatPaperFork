@@ -571,6 +571,43 @@ class Reader:
                                                                 conclusion_prompt_token=conclusion_prompt_token)
             htmls.append(chat_conclusion_text)
             htmls.append("\n" * 4)
+            
+            # todo 提取mof信息
+            conclusion_key = ''
+            
+            # 利用chemical tragger选取段落
+            for parse_key in paper.section_text_dict.keys():
+                if 'conclu' in parse_key.lower():
+                    conclusion_key = parse_key
+                    break
+            text = ''
+            conclusion_text = ''
+            summary_text = ''
+            summary_text += "<summary>" + chat_summary_text + "\n <Method summary>:\n" + chat_method_text
+            if conclusion_key != '':
+                # conclusion
+                conclusion_text += paper.section_text_dict[conclusion_key]
+                text = summary_text + "\n\n<Conclusion>:\n\n" + conclusion_text
+            else:
+                text = summary_text
+            chat_conclusion_text = ""
+            try:
+                chat_conclusion_text = self.chat_mof(text=text)
+            except Exception as e:
+                print("conclusion_error:", e)
+                import sys
+                exc_type, exc_obj, exc_tb = sys.exc_info()
+                fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+                print(exc_type, fname, exc_tb.tb_lineno)
+                if "maximum context" in str(e):
+                    current_tokens_index = str(e).find("your messages resulted in") + len(
+                        "your messages resulted in") + 1
+                    offset = int(str(e)[current_tokens_index:current_tokens_index + 4])
+                    conclusion_prompt_token = offset + 800 + 150
+                    chat_conclusion_text = self.chat_conclusion(text=text,
+                                                                conclusion_prompt_token=conclusion_prompt_token)
+            htmls.append(chat_conclusion_text)
+            htmls.append("\n" * 4)
 
             # # 整合成一个文件，打包保存下来。
             date_str = str(datetime.datetime.now())[:13].replace(' ', '-')
@@ -776,6 +813,71 @@ class Reader:
         print(f"Key word: {self.key_word}")
         print(f"Query: {self.query}")
         print(f"Sort: {self.sort}")
+
+    @tenacity.retry(wait=tenacity.wait_exponential(multiplier=1, min=4, max=10),
+                    stop=tenacity.stop_after_attempt(5),
+                    reraise=True)
+    def chat_mof(self, text, summary_prompt_token=1100):
+        print("-----begin chat_summary--------")
+        openai.api_key = self.chat_api_list[self.cur_api]
+        self.cur_api += 1
+        self.cur_api = 0 if self.cur_api >= len(self.chat_api_list) - 1 else self.cur_api
+        text_token = len(self.encoding.encode(text))
+        clip_text_index = int(len(text) * (self.max_token_num - summary_prompt_token) / text_token)
+        clip_text = text[:clip_text_index]
+        messages = [
+            {"role": "system",
+             "content": "You are a researcher in the field of [" + self.key_word + "] who is good at summarizing papers using concise statements"},
+            {"role": "assistant",
+             "content": "This is the title, author, link, abstract and introduction of an English document. I need your help to read and summarize the following questions: " + clip_text},
+            {"role": "user", "content": """                 
+                         1. Mark the title of the paper (with Chinese translation)
+                         2. list all the authors' names (use English)
+                         3. mark the first author's affiliation (output {} translation only)                 
+                         4. mark the keywords of this article (use English)
+                         5. link to the paper, Github code link (if available, fill in Github:None if not)
+                         6. summarize according to the following four points.Be sure to use {} answers (proper nouns need to be marked in English)
+                            - (1):What is the research background of this article?
+                            - (2):What are the past methods? What are the problems with them? Is the approach well motivated?
+                            - (3):What is the research methodology proposed in this paper?
+                            - (4):On what task and what performance is achieved by the methods in this paper? Can the performance support their goals?
+                         Follow the format of the output that follows:                  
+                         1. Title: xxx\n\n
+                         2. Authors: xxx\n\n
+                         3. Affiliation: xxx\n\n                 
+                         4. Keywords: xxx\n\n   
+                         5. Urls: xxx or xxx , xxx \n\n      
+                         6. Summary: \n\n
+                            - (1):xxx;\n 
+                            - (2):xxx;\n 
+                            - (3):xxx;\n  
+                            - (4):xxx.\n\n     
+
+                         Be sure to use {} answers (proper nouns need to be marked in English), statements as concise and academic as possible, do not have too much repetitive information, numerical values using the original numbers, be sure to strictly follow the format, the corresponding content output to xxx, in accordance with \n line feed.                 
+                         """.format(self.language, self.language, self.language)},
+        ]
+
+        if openai.api_type == 'azure':
+            response = openai.ChatCompletion.create(
+                engine=self.chatgpt_model,
+                # prompt需要用英语替换，少占用token。
+                messages=messages,
+            )
+        else:
+            response = openai.ChatCompletion.create(
+                model=self.chatgpt_model,
+                # prompt需要用英语替换，少占用token。
+                messages=messages,
+            )
+        result = ''
+        for choice in response.choices:
+            result += choice.message.content
+        print("summary_result:\n", result)
+        print("prompt_token_used:", response.usage.prompt_tokens,
+              "completion_token_used:", response.usage.completion_tokens,
+              "total_token_used:", response.usage.total_tokens)
+        print("response_time:", response.response_ms / 1000.0, 's')
+        return result
 
 
 def chat_paper_main(args):

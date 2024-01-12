@@ -11,6 +11,7 @@ from chat_arxiv import ArxivParams, chat_arxiv_main
 from chat_paper import PaperParams, chat_paper_main
 from ChatReviewerAndResponse.chat_response import ResponseParams, chat_response_main
 from ChatReviewerAndResponse.chat_reviewer import ReviewerParams, chat_reviewer_main
+from utils.loggerUtil import CustomClass
 
 app = Flask(__name__, template_folder='front')
 CORS(app)
